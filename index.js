@@ -10,7 +10,7 @@ import {Users, User, Exercise} from "./users.js"
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const users = new Users()
-app.use(bodyParser.urlencoded({extended: true}))
+app.use(bodyParser.urlencoded({extended: false}))
 app.use(cors())
 app.use(express.static('public'))
 
@@ -24,9 +24,12 @@ app.post("/api/users", (req, res) => {
 app.post("/api/users/:_id/exercises", (req, res) => {
   const {description, duration, date} = req.body
   const _id = req.params._id
-  console.log(_id, description, duration, date)
   const newUser = users.addExercise(_id, description, duration, date)
   res.json(newUser)
+})
+app.get("/api/users/:_id/logs", (req, res) => {
+  let queray = req.query
+  let _id = req.params._id
 })
  const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
