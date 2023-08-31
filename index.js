@@ -73,13 +73,13 @@ function checkNaN(req, res, next) {
     }
     next()
 }
-function checkDate(req, res, next) {
+function checkNaD(req, res, next) {
   let {from, to} = req.query
   for(let [k, v] of Object.entries({from, to})) {
   if(v !== undefined) {
     let newDate = new Date(v)
-    if(isNaN(new Date(v)?.getTime())) {
-      return res.json({[k]: "invalid date"})
+    if(isNaN(newDate?.getTime())) {
+      return res.json({[k]: "NaD"}).status(400)
     }
     req.query[k] = newDate
   }
@@ -88,8 +88,7 @@ function checkDate(req, res, next) {
 }
 
 
-
-app.get("/api/users/:_id/logs", checkDate, checkNaN, async (req, res) => {
+app.get("/api/users/:_id/logs", checkNaD, checkNaN, async (req, res) => {
   try {
   let {from, to, limit, _id: __id} = req.query 
   let _id = req.params._id
