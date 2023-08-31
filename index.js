@@ -46,49 +46,72 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/:_id/exercises", async (req, res) => {
   try{
   let {description, duration, date} = req.body
-  date ||= new Date()
+  date ??= new Date()
+  date = isDate(date) ? date : new Date(date)
   let _id = req.params._id
   let userDb = await UserModel.findById(_id).exec()
-  userDb.log ??= []
   userDb.log.push({description, date, duration})
   await userDb.save()
-  res.json({description, duration, date, _id: userDb._id, username: userDb.username}).status(200)
+
+  res.json({
+    username: userDb.username,
+    description,
+    duration: Number(duration),
+    date: date.toDateString(),
+    _id,
+  })
   }catch{
     res.json({error: "could not add exercise"}).status(400)
   }
 })
-app.get("/api/users/:_id/logs", async (req, res) => {
-  
-  let {from=new Date("2000"), to=new Date(), limit} = req.query 
-  let _id = req.params._id
-  let fromDate = from !== undefined ? new Date(from) : undefined
-  let toDate = to !== undefined ? new Date(to) : undefined
-    if(
-      (fromDate !== undefined && !isDate(fromDate)) ||
-      (toDate !== undefined && !isDate(toDate)) 
-    ) { 
-      return res.json({"error": "invalid date"})
+function checkNaN(req, res, next) {
+    console.log(req.query)
+    if(req.query.limit === undefined) return next()
+    req.query.limit = Number(req.query.limit)
+    if(isNaN(req.query.limit)) {
+        return res.json({limit: "NaN"}).status(400)
     }
-  [fromDate, toDate] = [fromDate, toDate].map(e => e.getTime())
+    next()
+}
+function checkDate(req, res, next) {
+  let {from, to} = req.query
+  for(let [k, v] of Object.entries({from, to})) {
+  if(v !== undefined) {
+    let newDate = new Date(v)
+    if(isNaN(new Date(v)?.getTime())) {
+      return res.json({[k]: "invalid date"})
+    }
+    req.query[k] = newDate
+  }
+}
+  next()
+}
+
+
+
+app.get("/api/users/:_id/logs", checkDate, checkNaN, async (req, res) => {
+  try {
+  let {from, to, limit, _id: __id} = req.query 
+  let _id = req.params._id
   let requestedUser = await UserModel.findById(_id).select("-__v").lean().exec() 
-  requestedUser.log = requestedUser.log.filter(({date}) => {
-      date = new Date(date).getTime()
-     return (fromDate ===undefined ||fromDate <= date )&& (toDate === undefined || toDate >= date)
-  }).slice(0, limit)
-    .map(e => {
-      e.date = e.date.toDateString()
-      return e
-    })
+  requestedUser.count = requestedUser.log.length
+  requestedUser.log
+    .forEach(e => {
+    e.date = e.date.toDateString()
+    delete e._id
+  })
+  console.log(limit)
+  if(limit !== undefined) {
+    requestedUser.log = requestedUser.log.slice(0, limit)
+  }
   res.json(requestedUser).status(200)
+  }catch {
+    res.json({"error": "could not get logs"})
+  }
 })
-
-
-
 
  const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
-function isDate(d) {
-  return d instanceof Date && !isNaN(d)
-}
+
 
