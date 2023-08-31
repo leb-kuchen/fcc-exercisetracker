@@ -7,14 +7,12 @@ import {fileURLToPath, pathToFileURL} from "url"
 import mongoose from "mongoose"
 import {} from "dotenv/config"
 import {v4 as uuidv4} from "uuid"
+import { emitKeypressEvents } from 'readline'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 app.use(bodyParser.urlencoded({extended: false}))
 app.use(cors())
 app.use(express.static('public'))
-
-let __id = "4373f08d-0e52-47e0-aac4-515d565ef932"
-
 mongoose.connect(process.env.MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true})
 const {Schema} = mongoose
 const userSchema = new Schema({
@@ -48,7 +46,7 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/:_id/exercises", async (req, res) => {
   try{
   let {description, duration, date} = req.body
-  date ??= new Date()
+  date ||= new Date()
   let _id = req.params._id
   let userDb = await UserModel.findById(_id).exec()
   userDb.log ??= []
@@ -60,16 +58,37 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
   }
 })
 app.get("/api/users/:_id/logs", async (req, res) => {
-  try {
-  let {from, to, limit} = req.query
+  
+  let {from=new Date("2000"), to=new Date(), limit} = req.query 
   let _id = req.params._id
-  let requestedUser = await UserModel.findById(_id).select("-__v").exec()
+  let fromDate = from !== undefined ? new Date(from) : undefined
+  let toDate = to !== undefined ? new Date(to) : undefined
+    if(
+      (fromDate !== undefined && !isDate(fromDate)) ||
+      (toDate !== undefined && !isDate(toDate)) 
+    ) { 
+      return res.json({"error": "invalid date"})
+    }
+  [fromDate, toDate] = [fromDate, toDate].map(e => e.getTime())
+  let requestedUser = await UserModel.findById(_id).select("-__v").lean().exec() 
+  requestedUser.log = requestedUser.log.filter(({date}) => {
+      date = new Date(date).getTime()
+     return (fromDate ===undefined ||fromDate <= date )&& (toDate === undefined || toDate >= date)
+  }).slice(0, limit)
+    .map(e => {
+      e.date = e.date.toDateString()
+      return e
+    })
   res.json(requestedUser).status(200)
-  } catch {
-    res.json({error: "could not get user logs"}).status(400)
-  }
 })
+
+
+
+
  const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
+function isDate(d) {
+  return d instanceof Date && !isNaN(d)
+}
 
