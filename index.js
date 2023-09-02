@@ -50,7 +50,7 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/:_id/exercises", async (req, res) => {
   try {
     let { description, duration, date } = req.body
-    date ??= new Date()
+    if(date  === undefined) date = new Date()
     date = !isNaD(date) ? date : new Date(date)
     let _id = req.params._id
     let userDb = await UserModel.findById(_id).exec()
