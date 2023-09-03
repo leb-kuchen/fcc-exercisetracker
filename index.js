@@ -12,10 +12,6 @@ const __dirname = path.dirname(__filename)
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cors())
 app.use(express.static("public"))
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
 const { Schema } = mongoose
 const userSchema = new Schema({
   _id: { type: String, required: true },
@@ -29,6 +25,19 @@ const userSchema = new Schema({
   ],
 })
 const UserModel = mongoose.model("User", userSchema)
+
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.log(error);
+    process.exit(1);
+  }
+}
+
+
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html")
@@ -125,4 +134,10 @@ app.get("/api/users/:_id/logs", checkNaD, checkNaN, async (req, res) => {
 })
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log("Your app is listening on port " + listener.address().port)
+})
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
+      console.log("listening for requests");
+  })
 })
